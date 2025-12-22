@@ -13,8 +13,7 @@ data:
     {
       "Yarp": {
         "ControllerClass": "microsoft.com/ingress-yarp",
-        "ServerCertificates": false,
-        "DefaultSslCertificate": "yarp/yarp-ingress-tls",
+        "ServerCertificates": true,
         "ControllerServiceName": "ingress-yarp-controller",
         "ControllerServiceNamespace": "yarp"
       }
@@ -38,9 +37,16 @@ rules:
   - endpoints
   - nodes
   - pods
-  - secrets
   - namespaces
   verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
   - list
   - watch
 - apiGroups:
@@ -109,7 +115,7 @@ kind: IngressClass
 metadata:
   name: yarp
   annotations:
-    #ingressclass.kubernetes.io/is-default-class: "true"
+    ingressclass.kubernetes.io/is-default-class: "true"
 spec:
   controller: microsoft.com/ingress-yarp
 ---
@@ -152,7 +158,7 @@ spec:
       containers:
       - name: yarp-controller
         imagePullPolicy: IfNotPresent
-        image: <REGISTRY_NAME>/yarp-combined:<TAG>
+        image: expaceo/yarp-ingress-controller:latest
         ports:
         - containerPort: 8000
           name: proxy

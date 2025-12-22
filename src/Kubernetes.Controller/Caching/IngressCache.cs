@@ -95,14 +95,21 @@ public class IngressCache : ICache
     public void Update(WatchEventType eventType, V1Secret secret)
     {
         var namespacedName = NamespacedName.From(secret);
-        _logger.LogDebug("Found secret '{NamespacedName}'. Checking against default {CertificateSecretName}", namespacedName, _options.DefaultSslCertificate);
+        _logger.LogDebug("Found secret '{NamespacedName}'. Checking against ingress tls secrets", namespacedName);
 
-        if (!string.Equals(namespacedName.ToString(), _options.DefaultSslCertificate, StringComparison.OrdinalIgnoreCase))
+        var hosts = GetIngresses()
+            .Where(ingress => ingress.Spec.Tls != null)
+            .SelectMany(ingress => ingress.Spec.Tls)
+            .FirstOrDefault(tls => string.Equals(tls.SecretName, secret.Name(), StringComparison.OrdinalIgnoreCase))
+            ?.Hosts;
+
+
+        if (hosts is null || hosts.Count == 0)
         {
             return;
         }
 
-        _logger.LogInformation("Found secret `{NamespacedName}` to use as default certificate for HTTPS traffic", namespacedName);
+        _logger.LogInformation("Found secret `{NamespacedName}` to use for HTTPS traffic to hosts {Hosts}", namespacedName, string.Join(", ", hosts));
 
         var certificate = _certificateHelper.ConvertCertificate(namespacedName, secret);
         if (certificate is null)
@@ -112,7 +119,10 @@ public class IngressCache : ICache
 
         if (eventType == WatchEventType.Added || eventType == WatchEventType.Modified)
         {
-            _certificateSelector.AddCertificate(namespacedName, certificate);
+            foreach (var hostName in hosts)
+            {
+                _certificateSelector.AddCertificate(hostName, namespacedName, certificate);
+            }
         }
         else if (eventType == WatchEventType.Deleted)
         {

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
+using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +22,12 @@ builder.Logging.AddSerilog(serilog, dispose: false);
 
 builder.Configuration.AddJsonFile("/app/config/yarp.json", optional: true);
 builder.WebHost.UseKubernetesReverseProxyCertificateSelector();
-builder.Services.AddKubernetesReverseProxy(builder.Configuration);
+builder.Services.AddKubernetesReverseProxy(builder.Configuration)
+    // Add original host header by default to match typical Ingress behavior
+    .AddTransforms(builderContext =>
+    {
+        builderContext.AddOriginalHost(useOriginal: true);
+    });
 
 var app = builder.Build();
 

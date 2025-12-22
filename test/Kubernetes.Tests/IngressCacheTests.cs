@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -32,7 +33,7 @@ public class IngressCacheTests
         _certificateSelector = new Mock<IServerCertificateSelector>();
         _certificateHelper = new Mock<ICertificateHelper>();
 
-        _mockOptions.SetupGet(o => o.Value).Returns(new YarpOptions { ControllerClass = "microsoft.com/ingress-yarp", DefaultSslCertificate = "default/yarp-ingress-tls" });
+        _mockOptions.SetupGet(o => o.Value).Returns(new YarpOptions { ControllerClass = "microsoft.com/ingress-yarp" });
 
         _cacheUnderTest = new IngressCache(_mockOptions.Object, _certificateSelector.Object, _certificateHelper.Object, logger);
 
@@ -152,7 +153,7 @@ public class IngressCacheTests
     }
 
     [Fact]
-    public void SecretNotMatchDefaultNameIgnored()
+    public void SecretNotMatchIngressNameIgnored()
     {
         // Arrange
         var secret = KubeResourceGenerator.CreateSecret("yarp", "not-my-tls");
@@ -162,7 +163,7 @@ public class IngressCacheTests
 
         // Assert
         _certificateHelper.Verify(h => h.ConvertCertificate(It.IsAny<NamespacedName>(), It.IsAny<V1Secret>()), Times.Never);
-        _certificateSelector.Verify(s => s.AddCertificate(It.IsAny<NamespacedName>(), It.IsAny<X509Certificate2>()), Times.Never);
+        _certificateSelector.Verify(s => s.AddCertificate(It.IsAny<string>(), It.IsAny<NamespacedName>(), It.IsAny<X509Certificate2>()), Times.Never);
     }
 
     [Fact]
@@ -173,13 +174,26 @@ public class IngressCacheTests
         _certificateHelper
             .Setup(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)))
             .Returns(_localhostCertificate);
+        var ingress = KubeResourceGenerator.CreateIngress("ingress-with-tls", "default", "yarp");
+        ingress.Spec.Tls = new List<V1IngressTLS>
+        {
+            new V1IngressTLS
+            {
+                Hosts = new List<string> { "example.com" },
+                SecretName = "yarp-ingress-tls"
+            }
+        };
+        _cacheUnderTest.Update(WatchEventType.Added, ingress);
+
+        var ingressClass = KubeResourceGenerator.CreateIngressClass("yarp", "microsoft.com/ingress-yarp", true);
+        _cacheUnderTest.Update(WatchEventType.Added, ingressClass);
 
         // Act
         _cacheUnderTest.Update(WatchEventType.Added, secret);
 
         // Assert
         _certificateHelper.Verify(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)), Times.Once);
-        _certificateSelector.Verify(s => s.AddCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<X509Certificate2>(c => c == _localhostCertificate)), Times.Once);
+        _certificateSelector.Verify(s => s.AddCertificate("example.com", It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<X509Certificate2>(c => c == _localhostCertificate)), Times.Once);
     }
 
     [Fact]
@@ -190,13 +204,26 @@ public class IngressCacheTests
         _certificateHelper
             .Setup(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)))
             .Returns(_localhostCertificate);
+        var ingress = KubeResourceGenerator.CreateIngress("ingress-with-tls", "default", "yarp");
+        ingress.Spec.Tls = new List<V1IngressTLS>
+        {
+            new V1IngressTLS
+            {
+                Hosts = new List<string> { "example.com" },
+                SecretName = "yarp-ingress-tls"
+            }
+        };
+        _cacheUnderTest.Update(WatchEventType.Added, ingress);
+
+        var ingressClass = KubeResourceGenerator.CreateIngressClass("yarp", "microsoft.com/ingress-yarp", true);
+        _cacheUnderTest.Update(WatchEventType.Added, ingressClass);
 
         // Act
         _cacheUnderTest.Update(WatchEventType.Modified, secret);
 
         // Assert
         _certificateHelper.Verify(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)), Times.Once);
-        _certificateSelector.Verify(s => s.AddCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<X509Certificate2>(c => c == _localhostCertificate)), Times.Once);
+        _certificateSelector.Verify(s => s.AddCertificate("example.com", It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<X509Certificate2>(c => c == _localhostCertificate)), Times.Once);
     }
 
     [Fact]
@@ -207,6 +234,19 @@ public class IngressCacheTests
         _certificateHelper
             .Setup(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)))
             .Returns(_localhostCertificate);
+        var ingress = KubeResourceGenerator.CreateIngress("ingress-with-tls", "default", "yarp");
+        ingress.Spec.Tls = new List<V1IngressTLS>
+        {
+            new V1IngressTLS
+            {
+                Hosts = new List<string> { "example.com" },
+                SecretName = "yarp-ingress-tls"
+            }
+        };
+        _cacheUnderTest.Update(WatchEventType.Added, ingress);
+
+        var ingressClass = KubeResourceGenerator.CreateIngressClass("yarp", "microsoft.com/ingress-yarp", true);
+        _cacheUnderTest.Update(WatchEventType.Added, ingressClass);
 
         // Act
         _cacheUnderTest.Update(WatchEventType.Deleted, secret);
@@ -217,19 +257,32 @@ public class IngressCacheTests
     }
 
     [Fact]
-    public void SecretMatchDefaultNameCantConvertNotAdded()
+    public void SecretMatchIngressCantConvertNotAdded()
     {
         // Arrange
         var secret = KubeResourceGenerator.CreateSecret("yarp-ingress-tls", "default");
         _certificateHelper
             .Setup(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)))
             .Returns((X509Certificate2)null);
+        var ingress = KubeResourceGenerator.CreateIngress("ingress-with-tls", "default", "yarp");
+        ingress.Spec.Tls = new List<V1IngressTLS>
+        {
+            new V1IngressTLS
+            {
+                Hosts = new List<string> { "example.com" },
+                SecretName = "yarp-ingress-tls"
+            }
+        };
+        _cacheUnderTest.Update(WatchEventType.Added, ingress);
+
+        var ingressClass = KubeResourceGenerator.CreateIngressClass("yarp", "microsoft.com/ingress-yarp", true);
+        _cacheUnderTest.Update(WatchEventType.Added, ingressClass);
 
         // Act
         _cacheUnderTest.Update(WatchEventType.Added, secret);
 
         // Assert
         _certificateHelper.Verify(h => h.ConvertCertificate(It.Is<NamespacedName>(n => n.Name == "yarp-ingress-tls" && n.Namespace == "default"), It.Is<V1Secret>(s => s == secret)), Times.Once);
-        _certificateSelector.Verify(s => s.AddCertificate(It.IsAny<NamespacedName>(), It.IsAny<X509Certificate2>()), Times.Never);
+        _certificateSelector.Verify(s => s.AddCertificate("example.com", It.IsAny<NamespacedName>(), It.IsAny<X509Certificate2>()), Times.Never);
     }
 }

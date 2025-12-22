@@ -13,8 +13,6 @@ public class YarpOptions
 
     public bool ServerCertificates { get; set; }
 
-    public string DefaultSslCertificate { get; set; }
-
     /// <summary>
     /// Name of the Kubernetes Service the ingress controller is running in.
     /// This field is required.

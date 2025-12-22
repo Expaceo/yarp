@@ -29,12 +29,15 @@ public class IngressController : BackgroundHostedService
     private readonly ICache _cache;
     private readonly IReconciler _reconciler;
 
+    private readonly IKubernetes _kubernetesClient;
+
     private bool _registrationsReady;
     private readonly WorkQueue<QueueItem> _queue;
     private readonly QueueItem _ingressChangeQueueItem;
 
     public IngressController(
         ICache cache,
+        IKubernetes kubernetesClient,
         IReconciler reconciler,
         IResourceInformer<V1Ingress> ingressInformer,
         IResourceInformer<V1Service> serviceInformer,
@@ -85,9 +88,11 @@ public class IngressController : BackgroundHostedService
 
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(reconciler);
+        ArgumentNullException.ThrowIfNull(kubernetesClient);
 
         _cache = cache;
         _reconciler = reconciler;
+        _kubernetesClient = kubernetesClient;
 
         _ingressChangeQueueItem = new QueueItem("Ingress Change");
     }
@@ -120,6 +125,22 @@ public class IngressController : BackgroundHostedService
     {
         if (_cache.Update(eventType, resource))
         {
+            foreach (var tls in resource?.Spec.Tls ?? Array.Empty<V1IngressTLS>())
+            {
+                try
+                {
+                    var secret = _kubernetesClient.CoreV1.ReadNamespacedSecret(tls.SecretName, resource.Namespace());
+                    if (secret != null)
+                    {
+                        _cache.Update(eventType, secret);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogInformation(ex, "Error reading secret '{SecretName}' in namespace '{Namespace}' for ingress '{IngressName}'", tls.SecretName, resource.Namespace(), resource.Name());
+                }
+            }
+
             NotificationIngressChanged();
         }
     }

@@ -22,9 +22,10 @@ public interface IServerCertificateSelector
     /// <summary>
     /// Adds a certificate to the selector.
     /// </summary>
+    /// <param name="domainName">The domain name.</param>
     /// <param name="certificateName">An identifier for the certificate that can be used to remove it.</param>
     /// <param name="certificate">The server certificate.</param>
-    void AddCertificate(NamespacedName certificateName, X509Certificate2 certificate);
+    void AddCertificate(string domainName, NamespacedName certificateName, X509Certificate2 certificate);
 
     /// <summary>
     /// Removes a certificate from the selector.

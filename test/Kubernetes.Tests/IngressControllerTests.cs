@@ -22,6 +22,7 @@ namespace Yarp.Kubernetes.Tests;
 public class IngressControllerTests
 {
     private readonly Mock<ICache> _mockCache = new();
+    private readonly Mock<IKubernetes> _mockKubernetes = new();
     private readonly Mock<IReconciler> _mockReconciler = new();
     private readonly SyncResourceInformer<V1Ingress> _ingressInformer = new();
     private readonly SyncResourceInformer<V1Service> _serviceInformer = new();
@@ -42,7 +43,7 @@ public class IngressControllerTests
         _mockOptions.Setup(o => o.Value).Returns(optionsNoWatchSecrets);
 
         var logger = new TestLogger<IngressController>(output);
-        _controller = new IngressController(_mockCache.Object, _mockReconciler.Object, _ingressInformer, _serviceInformer, _endpointsInformer, _ingressClassInformer, _secretInformer, _mockHostApplicationLifetime.Object, _mockOptions.Object, logger);
+        _controller = new IngressController(_mockCache.Object, _mockKubernetes.Object, _mockReconciler.Object, _ingressInformer, _serviceInformer, _endpointsInformer, _ingressClassInformer, _secretInformer, _mockHostApplicationLifetime.Object, _mockOptions.Object, logger);
     }
 
     [Fact]
