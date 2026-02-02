@@ -97,12 +97,18 @@ public class IngressCache : ICache
         var namespacedName = NamespacedName.From(secret);
         _logger.LogDebug("Found secret '{NamespacedName}'. Checking against ingress tls secrets", namespacedName);
 
+        var certificate = _certificateHelper.ConvertCertificate(namespacedName, secret);
+        if (certificate is null)
+        {
+            return;
+        }
+        _logger.LogDebug("Secret '{NamespacedName}' contains valid certificate.", namespacedName);
+
         var hosts = GetIngresses()
             .Where(ingress => ingress.Spec.Tls != null)
             .SelectMany(ingress => ingress.Spec.Tls)
             .FirstOrDefault(tls => string.Equals(tls.SecretName, secret.Name(), StringComparison.OrdinalIgnoreCase))
             ?.Hosts;
-
 
         if (hosts is null || hosts.Count == 0)
         {
@@ -111,11 +117,6 @@ public class IngressCache : ICache
 
         _logger.LogInformation("Found secret `{NamespacedName}` to use for HTTPS traffic to hosts {Hosts}", namespacedName, string.Join(", ", hosts));
 
-        var certificate = _certificateHelper.ConvertCertificate(namespacedName, secret);
-        if (certificate is null)
-        {
-            return;
-        }
 
         if (eventType == WatchEventType.Added || eventType == WatchEventType.Modified)
         {

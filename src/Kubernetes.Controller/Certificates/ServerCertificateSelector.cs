@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Connections;
@@ -9,7 +10,7 @@ namespace Yarp.Kubernetes.Controller.Certificates;
 
 internal class ServerCertificateSelector : IServerCertificateSelector
 {
-    private readonly Dictionary<string, (NamespacedName, X509Certificate2)> _certificates = new Dictionary<string, (NamespacedName, X509Certificate2)>();
+    private readonly ConcurrentDictionary<string, (NamespacedName, X509Certificate2)> _certificates = new();
 
     public void AddCertificate(string domainName, NamespacedName certificateName, X509Certificate2 certificate)
     {
@@ -25,9 +26,8 @@ internal class ServerCertificateSelector : IServerCertificateSelector
     {
         foreach (var kvp in _certificates)
         {
-            if (kvp.Value.Item1 == certificateName)
+            if (kvp.Value.Item1 == certificateName && _certificates.TryRemove(kvp.Key, out _))
             {
-                _certificates.Remove(kvp.Key);
                 break;
             }
         }
