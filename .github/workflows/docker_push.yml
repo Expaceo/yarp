@@ -1,0 +1,31 @@
+name: Dockerfiles Build
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the branch
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      # Setup up builder
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Docker Login
+        uses: docker/login-action@v4.1.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Combined
+        id: docker_combined
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./samples/KubernetesIngress.Sample/Combined/Dockerfile
+          push: true
+          tags: expaceo/yarp-ingress-controller:latest

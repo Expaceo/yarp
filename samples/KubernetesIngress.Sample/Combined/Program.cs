@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using BBelius.Yarp.ReverseProxy.IPFilters;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
+using System;
 using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,17 +22,27 @@ using var serilog = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(serilog, dispose: false);
 
-builder.Configuration.AddJsonFile("/app/config/yarp.json", optional: true);
+builder.Configuration.AddJsonFile("/app/config/yarp.json", optional: true, reloadOnChange: true);
 builder.WebHost.UseKubernetesReverseProxyCertificateSelector();
 builder.Services.AddKubernetesReverseProxy(builder.Configuration)
     // Add original host header by default to match typical Ingress behavior
     .AddTransforms(builderContext =>
     {
+        builderContext.AddXForwarded();
         builderContext.AddOriginalHost(useOriginal: true);
     });
+builder.Services.AddIPFilterPolicies(builder.Configuration);
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+});
 
 var app = builder.Build();
-
-app.MapReverseProxy();
+app.UseHsts();
+app.UseHttpsRedirection();
+app.MapReverseProxy(p =>
+{
+    p.UseIPFilterPolicies();
+});
 
 app.Run();
