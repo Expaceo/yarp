@@ -1,4 +1,4 @@
-name: Dockerfiles Build
+name: Ingress Combined Build and Push
 on:
   push:
     branches:
