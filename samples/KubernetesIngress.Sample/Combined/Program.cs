@@ -30,6 +30,7 @@ builder.Services.AddKubernetesReverseProxy(builder.Configuration)
     {
         builderContext.AddXForwarded();
         builderContext.AddOriginalHost(useOriginal: true);
+        builderContext.AddResponseHeaderRemove("Server", ResponseCondition.Always);
     });
 builder.Services.AddIPFilterPolicies(builder.Configuration);
 builder.Services.AddHsts(options =>
